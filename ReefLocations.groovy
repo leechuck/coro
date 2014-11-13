@@ -2,9 +2,12 @@ println "@prefix : <http://aber-owl.net/coral/coro.owl#> ."
 println "@prefix reef: <http://aber-owl.net/coral/coro.owl#Reef:> ."
 println "@prefix reeftype: <http://aber-owl.net/coral/coro.owl#Reeftype:> ."
 println "@prefix location: <http://aber-owl.net/coral/coro.owl#Location:> ."
+println "@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> ."
 println "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> ."
+println "@prefix owl: <http://www.w3.org/2002/07/owl#> ."
 println "@prefix disease: <http://aber-owl.net/coral/coro.owl#Disease:> ."
 println "@prefix diseasetype: <http://aber-owl.net/coral/coro.owl#DiseaseType:> ."
+println "@prefix diseaselocation: <http://aber-owl.net/coral/coro.owl#DiseaseLocation:> ."
 
 def reeftypes = [:]
 def counter = 0
@@ -85,13 +88,17 @@ new File("ReefLocations.csv").eachLine { l ->
   }
 }
 
+
+def location2id = [:]
+def loccounter = 0
+
 def disease2id = [:] // enumerates disease types
 def discounter = 0
 new File("CoralDiseases.csv").eachLine { l -> 
   def line = l.split(',(?=([^\"]*\"[^\"]*\")*[^\"]*$)')
   if (! line[0].startsWith("ID") && (line.size() == 19)) {
     def id = line[0]
-    def diseasetype = line[1]?.toLowerCase()
+    def diseasetype = line[1]?.toLowerCase()?.replaceAll("\"","")
     if (!(diseasetype in disease2id.keySet())) {
       disease2id[diseasetype] = discounter
       println "diseasetype:$discounter rdfs:subClassOf :Disease ."
@@ -99,16 +106,52 @@ new File("CoralDiseases.csv").eachLine { l ->
       discounter += 1
     }
     def diseaseid = disease2id[diseasetype]
-    println "disease:$id a diseasetype:$diseaseid ."
+    println "disease:$id a [ rdf:type owl:Restriction ; owl:onProperty :of ; owl:someValuesFrom diseasetype:$diseaseid ] ."
+    println "disease:$id a :DiseaseObservation ."
 
-    def year = line[2]
-    def lat = line[3]
-    def lon = line[4]
-    def region = line[5]
-    def subregion = line[6]
-    def country = line[7]
-    def location = line[8]
-    def town = line[9]
+    def year = line[2]?.replaceAll("\"","")
+    def lat = line[3]?.replaceAll("\"","")
+    def lon = line[4]?.replaceAll("\"","")
+    def region = line[5]?.replaceAll("\"","")
+    def subregion = line[6]?.replaceAll("\"","")
+    def country = line[7]?.replaceAll("\"","")
+    def location = line[8]?.replaceAll("\"","")
+    def town = line[9]?.replaceAll("\"","")
     
+    if (lat && lon) {
+      if (! ( (lat+" "+lon) in location2id)) {
+	println "diseaselocation:$loccounter a :GeoLocation ."
+	if (lat) {
+	  println "diseaselocation:$loccounter :latitude $lat ."
+	}
+	if (long) {
+	  println "diseaselocation:$loccounter :longitude $lon ."
+	}
+	if (region) {
+	  println "diseaselocation:$loccounter :region \"$region\" ."
+	}
+	if (subregion) {
+	  println "diseaselocation:$loccounter :subregion \"$subregion\" ."
+	}
+	if (country) {
+	  println "diseaselocation:$loccounter :country \"$country\" ."
+	}
+	if (location) {
+	  println "diseaselocation:$loccounter :location \"$location\" ."
+	}
+	if (town) {
+	  println "diseaselocation:$loccounter :near \"$town\" ."
+	}
+	println "disease:$id :located_in diseaselocation:$loccounter ."
+	location2id[lat+" "+lon] = loccounter
+	loccounter += 1
+      } else {
+	def lc = location2id[lat+" "+lon]
+	println "disease:$id :located_in diseaselocation:$lc ."
+      }
+      if (year) {
+	println "disease:$id :year $year ."
+      }
+    }
   }
 }
